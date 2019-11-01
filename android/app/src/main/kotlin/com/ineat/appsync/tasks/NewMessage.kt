@@ -28,8 +28,8 @@ class NewMessage(private val client: AWSAppSyncClient, private val call: MethodC
         val sender = call.argument<String>("sender")
 
         val mutation = NewMessageMutation.builder()
-                .content(content)
-                .sender(sender)
+                .content(content!!)
+                .sender(sender!!)
                 .build()
 
         client.mutate(mutation).enqueue(object : GraphQLCall.Callback<NewMessageMutation.Data>() {
