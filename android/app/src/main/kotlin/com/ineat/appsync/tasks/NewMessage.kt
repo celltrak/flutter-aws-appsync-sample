@@ -8,6 +8,8 @@ import com.google.gson.Gson
 import com.ineat.appsync.NewMessageMutation
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import android.os.Handler
+import android.os.Looper
 
 /**
  * Task for execute the mutation NewMessage in GraphQL file
@@ -40,31 +42,35 @@ class NewMessage(private val client: AWSAppSyncClient, private val call: MethodC
             }
 
             override fun onFailure(e: ApolloException) {
-                result.error("onFailure", e.message, null)
+                Handler(Looper.getMainLooper()).post {
+                    result.error("onFailure", e.message, null)
+                }
             }
 
         })
     }
 
     private fun parseResponse(response: Response<NewMessageMutation.Data>) {
-        if (response.hasErrors().not()) {
-            val newMessage = response.data()?.newMessage()?.let {
-                return@let mapOf(
-                        "id" to it.id(),
-                        "content" to it.sender(),
-                        "sender" to it.sender()
-                )
-            }
+        Handler(Looper.getMainLooper()).post {
+            if (response.hasErrors().not()) {
+                val newMessage = response.data()?.newMessage()?.let {
+                    return@let mapOf(
+                            "id" to it.id(),
+                            "content" to it.sender(),
+                            "sender" to it.sender()
+                    )
+                }
 
-            newMessage?.let {
-                val json = Gson().toJson(newMessage)
-                result.success(json)
-            } ?: run {
-                result.success(null)
+                newMessage?.let {
+                    val json = Gson().toJson(newMessage)
+                    result.success(json)
+                } ?: run {
+                    result.success(null)
+                }
+            } else {
+                val error = response.errors().map { it.message() }.joinToString(", ")
+                result.error("Errors", error, null)
             }
-        } else {
-            val error = response.errors().map { it.message() }.joinToString(", ")
-            result.error("Errors", error, null)
         }
     }
 

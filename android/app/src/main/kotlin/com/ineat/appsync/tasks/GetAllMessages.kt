@@ -9,6 +9,8 @@ import com.google.gson.Gson
 import com.ineat.appsync.GetMessagesQuery
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import android.os.Handler
+import android.os.Looper
 
 /**
  * Task for execute the query GetAllMessages in GraphQL file
@@ -35,31 +37,36 @@ class GetAllMessages (private val client: AWSAppSyncClient, private val call: Me
                     }
 
                     override fun onFailure(e: ApolloException) {
-                        result.error("onFailure", e.message, null)
+                        Handler(Looper.getMainLooper()).post {
+                            result.error("onFailure", e.message, null)
+                        }
                     }
 
                 })
     }
 
     private fun parseResponse(response: Response<GetMessagesQuery.Data>) {
-        if (response.hasErrors().not()) {
-            val messages = response.data()?.messages?.map {
-                return@map mapOf(
-                        "id" to it.id(),
-                        "content" to it.content(),
-                        "sender" to it.sender()
-                )
-            }
 
-            messages?.let {
-                val json = Gson().toJson(messages)
-                result.success(json)
-            } ?: run {
-                result.success(null)
+        Handler(Looper.getMainLooper()).post {
+            if (response.hasErrors().not()) {
+                val messages = response.data()?.messages?.map {
+                    return@map mapOf(
+                            "id" to it.id(),
+                            "content" to it.content(),
+                            "sender" to it.sender()
+                    )
+                }
+
+                messages?.let {
+                    val json = Gson().toJson(messages)
+                    result.success(json)
+                } ?: run {
+                    result.success(null)
+                }
+            } else {
+                val error = response.errors().map { it.message() }.joinToString(", ")
+                result.error("Errors", error, null)
             }
-        } else {
-            val error = response.errors().map { it.message() }.joinToString(", ")
-            result.error("Errors", error, null)
         }
     }
 
